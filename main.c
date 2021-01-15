@@ -214,7 +214,10 @@ int main(int argc, char *argv[]) {
             printf("Podaj dane ponownie\n");
         }
     }
+    printf("Plansza z własnymi statkami\n");
     print_board(board);
+    printf("Plansza z trafieniami\n");
+    print_board(hitboard);
 
     /* Ustawianie nicku na bazie argv[2], jeśli nie ma to ustawia "NN" */
     char *name = argc == 2 ? "NN" : argv[2];
