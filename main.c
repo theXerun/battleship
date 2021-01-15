@@ -34,10 +34,15 @@ void exit_with_error(const char *err) {
     exit(EXIT_FAILURE);
 }
 
+/* dodaje jednomasztowiec na wybraną pozycję
+ * przyjmuje też 'flag' w celu ponownego użycia funkcji dla większych statków */
 bool add_jednomasztowiec(char board[4][4], const char input[3], char flag) {
-    unsigned int row = input[0] - 'A';
-    unsigned int col = input[1] - '0' - 1;
 
+    int row = input[0] - 'A';
+    int col = input[1] - '0' - 1;
+
+    /* jeśli miejsce jest puste to oznacza je jako statek
+     * w przeciwnym wypadku daje informację zwrotną */
     if (board[row][col] == ' ') {
         board[row][col] = flag;
         return true;
@@ -47,6 +52,9 @@ bool add_jednomasztowiec(char board[4][4], const char input[3], char flag) {
     }
 }
 
+/* dodaje dwumasztowiec na wybraną pozycję
+ * uprzednio też sprawdza czy ta pozycja jest legalna,
+ * nie zajęta, obok siebie i nie na ukos */
 bool add_dwumasztowiec(char board[4][4], char in1[3], char in2[3]) {
 
     int row1 = in1[0] - 'A';
@@ -54,6 +62,7 @@ bool add_dwumasztowiec(char board[4][4], char in1[3], char in2[3]) {
     int row2 = in2[0] - 'A';
     int col2 = in2[1] - '0' - 1;
 
+    /* sprawdzanie legalności pozycji */
     if (abs(row1 - row2) <= 1 && abs(col1 - col2) <= 1 && (row1 == row2 || col1 == col2)) {
         if (!add_jednomasztowiec(board, in1, '2')) return false;
         if (!add_jednomasztowiec(board, in2, '2')) {
@@ -143,7 +152,7 @@ int main(int argc, char *argv[]) {
         server_addr = *((struct sockaddr_in *) p->ai_addr);
         break;
     }
-
+    /* deskryptor gniazda */
     sockfd = socket(AF_INET, SOCK_DGRAM, 0);
     if (sockfd == -1) {
         perror("socket");
