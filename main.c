@@ -22,14 +22,14 @@ int sockfd;
 void handler(int sig) {
     freeaddrinfo(addr);
     close(sockfd);
-    exit(0);
+    exit(EXIT_SUCCESS);
 }
 
 void exit_with_error(const char *err) {
     perror(err);
     freeaddrinfo(addr);
     close(sockfd);
-    exit(1);
+    exit(EXIT_FAILURE);
 }
 
 bool add_jednomasztowiec(char board[4][4], const char input[3], char flag) {
@@ -131,7 +131,7 @@ int main(int argc, char *argv[]) {
     if (getaddrinfo(argv[1], port, &hints, &addr) != 0) // wypelniamy strukture addr dla hosta argv[1]
     {
         perror("getaddrinfo");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 
     for (p = addr; p != NULL; p = p->ai_next) // przegladamy po wszystkich skojarzonych adresach
@@ -144,21 +144,25 @@ int main(int argc, char *argv[]) {
     if (sockfd == -1) {
         perror("socket");
         freeaddrinfo(addr);
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 
-    // adres lokalny
-    client_addr.sin_family = AF_INET;           /* IPv4 */
-    client_addr.sin_addr.s_addr = htonl(INADDR_ANY); /* dowolny interfejs */
-    client_addr.sin_port = htons(n);          /* port */
-    bindresult = bind(sockfd, (struct sockaddr *) &client_addr,
-                      sizeof(client_addr)); // skojarzenie gniazda z adresem lokalnym
+    /* Konfiguracja adresu lokalnego */
+    /* IPv4 */
+    client_addr.sin_family = AF_INET;
+    /* Dowolny interfejs */
+    client_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+    /* Port */
+    client_addr.sin_port = htons(n);
+    /* skojarzenie gniazda z adresem lokalnym */
+    bindresult = bind(sockfd, (struct sockaddr *) &client_addr, sizeof(client_addr));
     if (bindresult == -1)
         exit_with_error("Bind");
 
     printf("Rozpoczynam czat z %s. Napisz <koniec> by zakonczyc czat.\n", inet_ntoa(server_addr.sin_addr));
 
-    char *name = argc == 2 ? "NN" : argv[2]; // nick
+    /* Ustawianie nicku na bazie argv[2], jeśli nie ma to ustawia "NN" */
+    char *name = argc == 2 ? "NN" : argv[2];
     strcpy(message.nick, name);
 
     signal(SIGCHLD, handler); // obsluga zakonczenia potomka
@@ -171,9 +175,15 @@ int main(int argc, char *argv[]) {
     bytes = -1;
 
     char board[4][4];
+    char hitboard[4][4];
     size_t i, j;
 
-    for (i = 0; i < 4; ++i) for (j = 0; j < 4; ++j) board[i][j] = ' ';
+    for (i = 0; i < 4; ++i) {
+        for (j = 0; j < 4; ++j) {
+            board[i][j] = ' ';
+            hitboard[i][j] = ' ';
+        }
+    }
 
     char jed1[3];
     char jed2[3];
@@ -215,43 +225,56 @@ int main(int argc, char *argv[]) {
     {
         while (true) {
             printf("[%s]> ", name);
-            fgets(message.msg, 255, stdin); // pobieramy komunikat od uzytkownika
+            /* pobieramy wiadomość od użytkownika */
+            fgets(message.msg, 255, stdin);
             message.msg[strlen(message.msg) - 1] = '\0';
 
+            /* wysyłamy wiadomość */
             bytes = sendto(sockfd, &message, sizeof(message), 0, (struct sockaddr *) &server_addr,
-                           sizeof(server_addr)); // i go wysylamy
-            if (bytes == -1)
+                           sizeof(server_addr));
+            if (bytes == -1) {
                 exit_with_error("nie udalo sie wyslac");
+            }
 
             bytes = -1;
 
-            if (strcmp(message.msg, "<koniec>") == 0)
-                exit(0);
+            if (strcmp(message.msg, "<koniec>") == 0) {
+                exit(EXIT_SUCCESS);
+            }
         }
     } else if (pid != -1) {
         while (true) {
             unsigned int nn = sizeof(server_addr);
-            bytes = recvfrom(sockfd, &message, sizeof(message), 0, (struct sockaddr *) &server_addr,
-                             &nn); // odbieramy wiadomosc
+            /* Odbieranie wiadomości */
+            bytes = recvfrom(sockfd, &message, sizeof(message), 0, (struct sockaddr *) &server_addr, &nn);
             if (bytes == -1)
-                exit_with_error("blad recvfrom");
+                exit_with_error("Blad recvfrom");
 
             bytes = -1;
 
             /* wyswietlamy stosowny komunikat */
-            if (strcmp(message.msg, "<koniec>") == 0)
+            if (strcmp(message.msg, "<koniec>") == 0) {
                 printf("[%s (%s) zakonczyl rozmowe]\n", message.nick, inet_ntoa(server_addr.sin_addr));
-
-            else if (strcmp(message.msg, "!@#$%^&^%$#@!") == 0)
+                exit(EXIT_SUCCESS);
+            } else if (strcmp(message.msg, "!@#$%^&^%$#@!") == 0) {
                 printf("\n[%s (%s) dolaczyl do rozmowy]\n", message.nick, inet_ntoa(server_addr.sin_addr));
-
-            else
-                printf("[%s (%s)]> %s\n", message.nick, inet_ntoa(server_addr.sin_addr), message.msg);
+            } else if (strcmp(message.msg, "wypisz") == 0) {
+                print_board(hitboard);
+                bytes = sendto(sockfd, &hitboard, sizeof(hitboard), 0, (struct sockaddr *) &server_addr,
+                               sizeof(server_addr));
+                if (bytes == -1) {
+                    exit_with_error("nie udalo sie wyslac");
+                }
+            } else {
+                if (hit(board, hitboard, message.msg) == 1) {
+                    printf("[%s (%s)] zatopiles jednomasztowiec, podaj kolejne pole]\n", message.nick, inet_ntoa(server_addr.sin_addr));
+                }
+            }
 
             fflush(stdout);
         }
     } else {
-        exit_with_error("blad fork");
+        exit_with_error("Blad fork");
     }
     return 0;
 }
