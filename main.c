@@ -266,6 +266,8 @@ int main(int argc, char *argv[]) {
             /* Komunikat zależny od wiadomości */
             if (strcmp(message.msg, "<koniec>") == 0) {
                 printf("[%s (%s) zakonczyl rozmowe]\n", message.nick, inet_ntoa(server_addr.sin_addr));
+                freeaddrinfo(addr);
+                close(sockfd);
                 exit(EXIT_SUCCESS);
             } else if (strcmp(message.msg, "!@#$%^&^%$#@!") == 0) {
                 printf("\n[%s (%s) dolaczyl do rozmowy]\n", message.nick, inet_ntoa(server_addr.sin_addr));
