@@ -19,12 +19,14 @@ struct message {
 struct addrinfo *addr;
 int sockfd;
 
+/* sighandler */
 void handler(int sig) {
     freeaddrinfo(addr);
     close(sockfd);
     exit(EXIT_SUCCESS);
 }
 
+/* error handler */
 void exit_with_error(const char *err) {
     perror(err);
     freeaddrinfo(addr);
@@ -65,7 +67,8 @@ bool add_dwumasztowiec(char board[4][4], char in1[3], char in2[3]) {
     }
 }
 
-/* 0 = Nie trafiony, 1 = Trafiony i zatopiony, 2 = Trafiony, ale nie zatopiony  */
+/* Zwraca 3 wartości:
+ * 0 = Nie trafiony, 1 = Trafiony i zatopiony, 2 = Trafiony, ale nie zatopiony  */
 int hit(char board[4][4], char hitboard[4][4], const char in[3]) {
     int row = in[0] - 'A';
     int col = in[1] - '0' - 1;
@@ -74,6 +77,7 @@ int hit(char board[4][4], char hitboard[4][4], const char in[3]) {
         return 1;
     } else if (board[row][col] == '2') {
         int dwu = 0;
+        /* sprawdza istnienie pozostałej części dwumasztowca */
         for (int i = 0; i < 4; ++i) {
             for (int j = 0; j < 4; ++j) {
                 if (board[i][j] == '2') {
@@ -93,13 +97,13 @@ int hit(char board[4][4], char hitboard[4][4], const char in[3]) {
     }
 }
 
+/* wypisuje planszę w odpowiednim formacie */
 void print_board(char board[4][4]) {
-    size_t i, j;
     char alfabet[4] = {'A', 'B', 'C', 'D'};
     printf("  1 2 3 4\n");
-    for (i = 0; i < 4; ++i) {
+    for (int i = 0; i < 4; ++i) {
         printf("%c ", alfabet[i]);
-        for (j = 0; j < 4; ++j) {
+        for (int j = 0; j < 4; ++j) {
             printf("%c ", board[i][j]);
         }
         printf("\n");
@@ -123,20 +127,20 @@ int main(int argc, char *argv[]) {
     hints.ai_family = AF_INET;
     hints.ai_socktype = SOCK_DGRAM;
 
-    int n = 5001; // nasz port
-    char port[7]; // w wersji char*
+    /* ustawiam port */
+    int n = 18000;
+    char port[7];
+    sprintf(port, "%d", n);
 
-    sprintf(port, "%d", n); // i zamiana na nia
-
-    if (getaddrinfo(argv[1], port, &hints, &addr) != 0) // wypelniamy strukture addr dla hosta argv[1]
-    {
+    /* ustawienie hosta dla argv[1] */
+    if (getaddrinfo(argv[1], port, &hints, &addr) != 0) {
         perror("getaddrinfo");
         exit(EXIT_FAILURE);
     }
-
-    for (p = addr; p != NULL; p = p->ai_next) // przegladamy po wszystkich skojarzonych adresach
-    {
-        server_addr = *((struct sockaddr_in *) p->ai_addr); // znajudujemy pierwszy wlasciwy i wychodzimy z petli
+    /* przechodzimy pętlę ze wszystkimi skojarzonymi adresami
+     * i po znalezieniu pierwszego właściwego opuszczamy pętle*/
+    for (p = addr; p != NULL; p = p->ai_next) {
+        server_addr = *((struct sockaddr_in *) p->ai_addr);
         break;
     }
 
@@ -159,38 +163,30 @@ int main(int argc, char *argv[]) {
     if (bindresult == -1)
         exit_with_error("Bind");
 
-    printf("Rozpoczynam czat z %s. Napisz <koniec> by zakonczyc czat.\n", inet_ntoa(server_addr.sin_addr));
+    printf("Rozpoczynam czat z %s. Napisz <koniec> by zakonczyc czat."
+           " Ustal polozenie swoich okretow:\n", inet_ntoa(server_addr.sin_addr));
 
-    /* Ustawianie nicku na bazie argv[2], jeśli nie ma to ustawia "NN" */
-    char *name = argc == 2 ? "NN" : argv[2];
-    strcpy(message.nick, name);
-
-    signal(SIGCHLD, handler); // obsluga zakonczenia potomka
-
-    strcpy(message.msg, "!@#$%^&^%$#@!"); // komunikat o nawiazaniu poloczenia
-    bytes = sendto(sockfd, &message, sizeof(message), 0, (struct sockaddr *) &server_addr, sizeof(server_addr));
-    if (bytes == -1)
-        exit_with_error("Brak poloczenia");
-
-    bytes = -1;
-
+    /* zmienne i wywołania potrzebne do gry w statki
+     * nie działają jednak w tej wersji programu */
+    /* plansza zawierająca statki w pozycjach wybranych przez użytkownika*/
     char board[4][4];
+    /* plansza z ozaczeniami trafień */
     char hitboard[4][4];
-    size_t i, j;
+    /* jednomasztowce */
+    char jed1[3];
+    char jed2[3];
+    /* dwumasztowce */
+    char dwu1[3];
+    char dwu2[3];
 
-    for (i = 0; i < 4; ++i) {
-        for (j = 0; j < 4; ++j) {
+    /* wypełnienie obu planszy */
+    for (int i = 0; i < 4; ++i) {
+        for (int j = 0; j < 4; ++j) {
             board[i][j] = ' ';
             hitboard[i][j] = ' ';
         }
     }
-
-    char jed1[3];
-    char jed2[3];
-    char dwu1[3];
-    char dwu2[3];
-
-
+     /* wejście do danych */
     while (true) {
         printf("1. jednomasztowiec:");
         scanf("%s", jed1);
@@ -220,9 +216,23 @@ int main(int argc, char *argv[]) {
     }
     print_board(board);
 
+    /* Ustawianie nicku na bazie argv[2], jeśli nie ma to ustawia "NN" */
+    char *name = argc == 2 ? "NN" : argv[2];
+    strcpy(message.nick, name);
+    /* Do obsługi zakończenia child process */
+    signal(SIGCHLD, handler);
+    /* Wiadomość oznaczająca nawiązanie połączenia */
+    strcpy(message.msg, "!@#$%^&^%$#@!");
+    bytes = sendto(sockfd, &message, sizeof(message), 0, (struct sockaddr *) &server_addr, sizeof(server_addr));
+    if (bytes == -1) {
+        exit_with_error("Brak połączenia");
+    }
+
+    bytes = -1;
+
+    /* child process do obsługi wysyłania */
     int pid;
-    if ((pid = fork()) == 0) // tworzymy potomka do obslugi wysylania
-    {
+    if ((pid = fork()) == 0) {
         while (true) {
             printf("[%s]> ", name);
             /* pobieramy wiadomość od użytkownika */
@@ -233,7 +243,7 @@ int main(int argc, char *argv[]) {
             bytes = sendto(sockfd, &message, sizeof(message), 0, (struct sockaddr *) &server_addr,
                            sizeof(server_addr));
             if (bytes == -1) {
-                exit_with_error("nie udalo sie wyslac");
+                exit_with_error("Nie udalo sie wysłać wiadomości");
             }
 
             bytes = -1;
@@ -242,6 +252,7 @@ int main(int argc, char *argv[]) {
                 exit(EXIT_SUCCESS);
             }
         }
+
     } else if (pid != -1) {
         while (true) {
             unsigned int nn = sizeof(server_addr);
@@ -252,29 +263,20 @@ int main(int argc, char *argv[]) {
 
             bytes = -1;
 
-            /* wyswietlamy stosowny komunikat */
+            /* Komunikat zależny od wiadomości */
             if (strcmp(message.msg, "<koniec>") == 0) {
                 printf("[%s (%s) zakonczyl rozmowe]\n", message.nick, inet_ntoa(server_addr.sin_addr));
                 exit(EXIT_SUCCESS);
             } else if (strcmp(message.msg, "!@#$%^&^%$#@!") == 0) {
                 printf("\n[%s (%s) dolaczyl do rozmowy]\n", message.nick, inet_ntoa(server_addr.sin_addr));
-            } else if (strcmp(message.msg, "wypisz") == 0) {
-                print_board(hitboard);
-                bytes = sendto(sockfd, &hitboard, sizeof(hitboard), 0, (struct sockaddr *) &server_addr,
-                               sizeof(server_addr));
-                if (bytes == -1) {
-                    exit_with_error("nie udalo sie wyslac");
-                }
             } else {
-                if (hit(board, hitboard, message.msg) == 1) {
-                    printf("[%s (%s)] zatopiles jednomasztowiec, podaj kolejne pole]\n", message.nick, inet_ntoa(server_addr.sin_addr));
-                }
+                printf("[%s (%s)]: %s\n", message.nick, inet_ntoa(server_addr.sin_addr), message.msg);
             }
 
             fflush(stdout);
         }
     } else {
-        exit_with_error("Blad fork");
+        exit_with_error("Błąd fork");
     }
     return 0;
 }
