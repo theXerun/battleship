@@ -10,6 +10,7 @@
 #include <unistd.h>
 #include <sys/signal.h>
 
+/* Struktura pomocnicza do wysyłania */
 struct message {
     char nick[32];
     char msg[256];
