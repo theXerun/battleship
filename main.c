@@ -16,11 +16,11 @@
 #define hit_and_killed_dwumasztowiec 3
 #define win 4
 #define end 5
+#define connected 10
 
 /* Struktura pomocnicza do wysyłania */
 struct message {
     char nick[32];
-    char msg[255];
     char shot[3];
     int reaction;
 };
@@ -85,6 +85,14 @@ bool add_dwumasztowiec(char board[4][4], char in1[3], char in2[3]) {
     }
 }
 
+void force_replace(char board[4][4], const char input[3], char flag) {
+
+    int row = input[0] - 'A';
+    int col = input[1] - '0' - 1;
+    board[row][col] = flag;
+
+}
+
 /* Zwraca 3 wartości:
  * 0 = Nie trafiony, 1 = Trafiony i zatopiony, 2 = Trafiony, ale nie zatopiony  */
 int hit(char board[4][4], const char in[3]) {
@@ -135,7 +143,11 @@ void clear_board(char board[4][4]) {
 
 bool is_coords(const char *msg) {
     if (msg[0] == 'A' || msg[0] == 'B' || msg[0] == 'C' || msg[0] == 'D') {
-        return true;
+        if (msg[1] == '1' || msg[1] == '2' || msg[1] == '3' || msg[1] == '4') {
+            return true;
+        } else {
+            return false;
+        }
     } else {
         return false;
     }
@@ -146,6 +158,7 @@ int main(int argc, char *argv[]) {
     struct sockaddr_in client_addr, server_addr;
     struct message player, opponent;
     player.reaction = -1;
+    char msg[255];
     volatile bool missed = false;
     int killcount = 0;
     int bindresult;
@@ -255,44 +268,50 @@ int main(int argc, char *argv[]) {
     signal(SIGCHLD, handler);
 
     /* Wiadomość oznaczająca nawiązanie połączenia */
-    strcpy(player.msg, "Grimpoteuthis");
+    player.reaction = connected;
     bytes = sendto(sockfd, &player, sizeof(player), 0, (struct sockaddr *) &server_addr, sizeof(server_addr));
-    printf("[Propozycja gry wyslana]\n");
     if (bytes == -1) {
         exit_with_error("Brak połączenia");
     }
-
+    printf("[Propozycja gry wyslana]\n");
+    bytes = recvfrom(sockfd, &opponent, sizeof(opponent),
+                     0, (struct sockaddr *) &server_addr, (socklen_t *) sizeof(server_addr));
+    if (bytes == -1) {
+        exit_with_error("Blad recvfrom");
+    }
+    if (opponent.reaction == connected) {
+        printf("[%s (%s): dolaczyl do gry, podaj pole do strzalu]\n",
+               opponent.nick, inet_ntoa(server_addr.sin_addr));
+    }
     bytes = -1;
 
     /* child process do obsługi wysyłania */
     int pid;
     if ((pid = fork()) == 0) {
         while (true) {
-            /* pobieramy wiadomość od użytkownika */
-            fgets(player.msg, 255, stdin);
-            player.msg[strlen(player.msg) - 1] = '\0';
-
-            if (strcmp(player.msg, "wypisz") == 0) {
-                print_board(hitboard);
-            }
-            if (is_coords(player.msg)) {
-                printf("Strzal!\n");
-                player.shot[0] = player.msg[0];
-                player.shot[1] = player.msg[1];
-                player.shot[2] = '\0';
-
-            }
-
-            printf("Nie strzela bo iscords: %d\n",
-                   is_coords(player.msg));
-
             if (killcount > 2) {
                 player.reaction = win;
                 printf("[%s (%s) wygrales]\n", opponent.nick,
                        inet_ntoa(server_addr.sin_addr));
+            } else {
+                /* pobieramy wiadomość od użytkownika */
+                fgets(msg, 255, stdin);
+                msg[strlen(msg) - 1] = '\0';
             }
 
-            if (strcmp(player.msg, "<koniec>") == 0) {
+            if (strcmp(msg, "wypisz") == 0) {
+                print_board(hitboard);
+            }
+
+            if (is_coords(msg)) {
+                printf("Strzal!\n");
+                player.shot[0] = msg[0];
+                player.shot[1] = msg[1];
+                player.shot[2] = '\0';
+
+            }
+
+            if (strcmp(msg, "<koniec>") == 0) {
                 player.reaction = end;
                 sendto(sockfd, &player, sizeof(player), 0,
                        (struct sockaddr *) &server_addr,
@@ -315,10 +334,9 @@ int main(int argc, char *argv[]) {
 
     } else if (pid != -1) {
         while (true) {
-            unsigned int nn = sizeof(server_addr);
             /* Odbieranie wiadomości */
             bytes = recvfrom(sockfd, &opponent, sizeof(opponent),
-                             0, (struct sockaddr *) &server_addr, &nn);
+                             0, (struct sockaddr *) &server_addr, (socklen_t *) sizeof(server_addr));
             if (bytes == -1) {
                 exit_with_error("Blad recvfrom");
             }
@@ -330,54 +348,61 @@ int main(int argc, char *argv[]) {
 
                 missed = false;
                 if (opponent.reaction == hit_and_killed_jednomasztowiec) {
-                    add_jednomasztowiec(hitboard, player.shot, 'Z');
+                    force_replace(hitboard, player.shot, 'Z');
                     ++killcount;
                     printf("[%s (%s): zatopiles jednomasztowiec, podaj pole do strzalu]\n",
                            opponent.nick, inet_ntoa(server_addr.sin_addr));
+
                 } else if (opponent.reaction == hit_not_killed_dwumasztowiec) {
-                    add_jednomasztowiec(hitboard, player.shot, 'x');
+                    force_replace(hitboard, player.shot, 'x');
                     strcpy(hitdwu, player.shot); // chwilowa zmienna do trzymania
                     printf("[%s (%s): trafiles dwumasztowiec, podaj kolejne pole]\n",
                            opponent.nick, inet_ntoa(server_addr.sin_addr));
+
                 } else if (opponent.reaction == hit_and_killed_dwumasztowiec) {
-                    add_jednomasztowiec(hitboard, player.shot, 'Z');
-                    add_jednomasztowiec(hitboard, hitdwu, 'Z');
+                    force_replace(hitboard, player.shot, 'Z');
+                    force_replace(hitboard, hitdwu, 'Z');
                     ++killcount;
+
                 } else if (opponent.reaction == win) {
                     printf("[%s (%s) wygral, przegrales]\n",
                            opponent.nick, inet_ntoa(server_addr.sin_addr));
                     continue;
+
                 } else if (opponent.reaction == miss) {
-                    printf("[Pudlo, ");
                     missed = true;
+
                 } else if (opponent.reaction == end) {
                     printf("[%s (%s) zakonczyl gre, czy chcesz przygotowac nowa plansze?]\n",
                            opponent.nick, inet_ntoa(server_addr.sin_addr));
-                    opponent.reaction = -1;
-                    player.shot[0] = ' ';
-                    player.shot[1] = ' ';
-                    player.shot[2] = ' ';
                 }
+                opponent.reaction = -1;
+                player.shot[0] = ' ';
+                player.shot[1] = ' ';
+                player.shot[2] = ' ';
+
             } else if (is_coords(opponent.shot)) {
                 player.reaction = hit(board, opponent.shot);
-                sendto(sockfd, &player, sizeof(player), 0, (struct sockaddr *) &server_addr,
-                       sizeof(server_addr));
+                if (missed == false) {
+                    printf("[");
+                } else {
+                    printf("[Pudlo, ");
+                }
                 if (player.reaction == hit_and_killed_jednomasztowiec) {
-                    if (missed == false) {
-                        printf("[");
-                    }
+                    force_replace(board, opponent.shot, ' ');
                     printf("%s (%s) strzela %s - jednomasztowiec trafiony]\n",
                            opponent.nick, inet_ntoa(server_addr.sin_addr), opponent.shot);
                 } else if (player.reaction == hit_not_killed_dwumasztowiec) {
+                    force_replace(board, opponent.shot, ' ');
                     printf("%s (%s) strzela %s - dwumasztowiec trafiony]\n",
                            opponent.nick, inet_ntoa(server_addr.sin_addr), opponent.shot);
                 } else if (player.reaction == hit_and_killed_dwumasztowiec) {
+                    force_replace(board, opponent.shot, ' ');
                     printf("%s (%s) strzela %s - dwumasztowiec zatopiony]\n",
                            opponent.nick, inet_ntoa(server_addr.sin_addr), opponent.shot);
                 }
-            } else if (strcmp(opponent.msg, "Grimpoteuthis") == 0) {
-                printf("\n[%s (%s) dolaczyl do rozmowy podaj pole do strzalu]\n",
-                       opponent.nick, inet_ntoa(server_addr.sin_addr));
+                sendto(sockfd, &player, sizeof(player), 0, (struct sockaddr *) &server_addr,
+                       sizeof(server_addr));
             }
             fflush(stdout);
         }
