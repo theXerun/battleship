@@ -148,7 +148,6 @@ int main(int argc, char *argv[]) {
     player.reaction = -1;
     volatile bool missed = false;
     int killcount = 0;
-    volatile bool turn = false;
     int bindresult;
     ssize_t bytes;
 
@@ -276,7 +275,7 @@ int main(int argc, char *argv[]) {
             if (strcmp(player.msg, "wypisz") == 0) {
                 print_board(hitboard);
             }
-            if (is_coords(player.msg) && turn == true) {
+            if (is_coords(player.msg)) {
                 printf("Strzal!\n");
                 player.shot[0] = player.msg[0];
                 player.shot[1] = player.msg[1];
@@ -284,8 +283,8 @@ int main(int argc, char *argv[]) {
 
             }
 
-            printf("Nie strzela bo iscords: %d i turn: %d\n",
-                   is_coords(player.msg), turn);
+            printf("Nie strzela bo iscords: %d\n",
+                   is_coords(player.msg));
 
             if (killcount > 2) {
                 player.reaction = win;
@@ -376,11 +375,9 @@ int main(int argc, char *argv[]) {
                     printf("%s (%s) strzela %s - dwumasztowiec zatopiony]\n",
                            opponent.nick, inet_ntoa(server_addr.sin_addr), opponent.shot);
                 }
-                turn = true;
             } else if (strcmp(opponent.msg, "Grimpoteuthis") == 0) {
                 printf("\n[%s (%s) dolaczyl do rozmowy podaj pole do strzalu]\n",
                        opponent.nick, inet_ntoa(server_addr.sin_addr));
-                turn = true;
             }
             fflush(stdout);
         }
