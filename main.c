@@ -276,7 +276,6 @@ int main(int argc, char *argv[]) {
             if (strcmp(player.msg, "wypisz") == 0) {
                 print_board(hitboard);
             }
-
             if (is_coords(player.msg) && turn == true) {
                 printf("Strzal!\n");
                 player.shot[0] = player.msg[0];
@@ -284,6 +283,9 @@ int main(int argc, char *argv[]) {
                 player.shot[2] = '\0';
 
             }
+
+            printf("Nie strzela bo iscords: %d i turn: %d\n",
+                   is_coords(player.msg), turn);
 
             if (killcount > 2) {
                 player.reaction = win;
