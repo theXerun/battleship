@@ -157,7 +157,6 @@ int main(int argc, char *argv[]) {
 
     struct sockaddr_in client_addr, server_addr;
     struct message player, opponent;
-    player.reaction = -1;
     char msg[255];
     volatile bool missed = false;
     int killcount = 0;
@@ -269,21 +268,16 @@ int main(int argc, char *argv[]) {
 
     /* Wiadomość oznaczająca nawiązanie połączenia */
     player.reaction = connected;
-    bytes = sendto(sockfd, &player, sizeof(player), 0, (struct sockaddr *) &server_addr, sizeof(server_addr));
+    bytes = sendto(sockfd, &player, sizeof(player),
+                   0, (struct sockaddr *) &server_addr, sizeof(server_addr));
+
     if (bytes == -1) {
         exit_with_error("Brak połączenia");
     }
     printf("[Propozycja gry wyslana]\n");
-    bytes = recvfrom(sockfd, &opponent, sizeof(opponent),
-                     0, (struct sockaddr *) &server_addr, (socklen_t *) sizeof(server_addr));
-    if (bytes == -1) {
-        exit_with_error("Blad recvfrom");
-    }
-    if (opponent.reaction == connected) {
-        printf("[%s (%s): dolaczyl do gry, podaj pole do strzalu]\n",
-               opponent.nick, inet_ntoa(server_addr.sin_addr));
-    }
+
     bytes = -1;
+    player.reaction = -1;
 
     /* child process do obsługi wysyłania */
     int pid;
@@ -337,17 +331,22 @@ int main(int argc, char *argv[]) {
             /* Odbieranie wiadomości */
             bytes = recvfrom(sockfd, &opponent, sizeof(opponent),
                              0, (struct sockaddr *) &server_addr, (socklen_t *) sizeof(server_addr));
+
             if (bytes == -1) {
                 exit_with_error("Blad recvfrom");
             }
 
             bytes = -1;
 
-            /* Komunikat zależny od wiadomości */
             if (opponent.reaction != -1) {
 
                 missed = false;
-                if (opponent.reaction == hit_and_killed_jednomasztowiec) {
+
+                if (opponent.reaction == connected) {
+                    printf("[%s (%s): dolaczyl do gry, podaj pole do strzalu]\n",
+                           opponent.nick, inet_ntoa(server_addr.sin_addr));
+
+                } else if (opponent.reaction == hit_and_killed_jednomasztowiec) {
                     force_replace(hitboard, player.shot, 'Z');
                     ++killcount;
                     printf("[%s (%s): zatopiles jednomasztowiec, podaj pole do strzalu]\n",
