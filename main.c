@@ -374,11 +374,11 @@ int main(int argc, char *argv[]) {
                                opponent.nick, inet_ntoa(server_addr.sin_addr), opponent.shot);
                     }
                     turn = true;
-                } else if (strcmp(opponent.msg, "Grimpoteuthis") == 0) {
-                    printf("\n[%s (%s) dolaczyl do rozmowy podaj pole do strzalu]\n",
-                           opponent.nick, inet_ntoa(server_addr.sin_addr));
-                    turn = true;
                 }
+            } else if (strcmp(opponent.msg, "Grimpoteuthis") == 0) {
+                printf("\n[%s (%s) dolaczyl do rozmowy podaj pole do strzalu]\n",
+                       opponent.nick, inet_ntoa(server_addr.sin_addr));
+                turn = true;
             }
             fflush(stdout);
         }
