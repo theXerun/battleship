@@ -278,6 +278,7 @@ int main(int argc, char *argv[]) {
             }
 
             if (is_coords(player.msg) && turn == true) {
+                printf("Strzal!\n");
                 player.shot[0] = player.msg[0];
                 player.shot[1] = player.msg[1];
                 player.shot[2] = '\0';
@@ -355,26 +356,25 @@ int main(int argc, char *argv[]) {
                     player.shot[0] = ' ';
                     player.shot[1] = ' ';
                     player.shot[2] = ' ';
-
-                } else if (is_coords(opponent.shot)) {
-                    player.reaction = hit(board, opponent.shot);
-                    sendto(sockfd, &player, sizeof(player), 0, (struct sockaddr *) &server_addr,
-                           sizeof(server_addr));
-                    if (player.reaction == hit_and_killed_jednomasztowiec) {
-                        if (missed == false) {
-                            printf("[");
-                        }
-                        printf("%s (%s) strzela %s - jednomasztowiec trafiony]\n",
-                               opponent.nick, inet_ntoa(server_addr.sin_addr), opponent.shot);
-                    } else if (player.reaction == hit_not_killed_dwumasztowiec) {
-                        printf("%s (%s) strzela %s - dwumasztowiec trafiony]\n",
-                               opponent.nick, inet_ntoa(server_addr.sin_addr), opponent.shot);
-                    } else if (player.reaction == hit_and_killed_dwumasztowiec) {
-                        printf("%s (%s) strzela %s - dwumasztowiec zatopiony]\n",
-                               opponent.nick, inet_ntoa(server_addr.sin_addr), opponent.shot);
-                    }
-                    turn = true;
                 }
+            } else if (is_coords(opponent.shot)) {
+                player.reaction = hit(board, opponent.shot);
+                sendto(sockfd, &player, sizeof(player), 0, (struct sockaddr *) &server_addr,
+                       sizeof(server_addr));
+                if (player.reaction == hit_and_killed_jednomasztowiec) {
+                    if (missed == false) {
+                        printf("[");
+                    }
+                    printf("%s (%s) strzela %s - jednomasztowiec trafiony]\n",
+                           opponent.nick, inet_ntoa(server_addr.sin_addr), opponent.shot);
+                } else if (player.reaction == hit_not_killed_dwumasztowiec) {
+                    printf("%s (%s) strzela %s - dwumasztowiec trafiony]\n",
+                           opponent.nick, inet_ntoa(server_addr.sin_addr), opponent.shot);
+                } else if (player.reaction == hit_and_killed_dwumasztowiec) {
+                    printf("%s (%s) strzela %s - dwumasztowiec zatopiony]\n",
+                           opponent.nick, inet_ntoa(server_addr.sin_addr), opponent.shot);
+                }
+                turn = true;
             } else if (strcmp(opponent.msg, "Grimpoteuthis") == 0) {
                 printf("\n[%s (%s) dolaczyl do rozmowy podaj pole do strzalu]\n",
                        opponent.nick, inet_ntoa(server_addr.sin_addr));
