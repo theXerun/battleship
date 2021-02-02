@@ -13,6 +13,7 @@
 #include <sys/mman.h>
 #include <sys/shm.h>
 
+/* makra dla lepszej czytelności */
 #define miss 0
 #define hit_and_killed_jednomasztowiec 1
 #define hit_not_killed_dwumasztowiec 2
@@ -24,23 +25,24 @@
 
 /* Struktura pomocnicza do wysyłania */
 struct message {
-    char nick[32];
-    char shot[3];
-    int reaction;
-    int killcount;
+    char nick[32]; // nick wyświetlany
+    char shot[3]; // koordynaty strzału
+    int reaction; // reakcja jedna z makr powyżej albo -1
+    int killcount; // liczy zestrzelenia
 };
 
 struct addrinfo *addr;
 int sockfd;
+/* pamięć dzielona */
 int shmid;
 struct message *shmptr;
-pid_t shmpid;
 
 /* sighandler */
 void handler(int sig) {
     freeaddrinfo(addr);
     close(sockfd);
     shmdt(shmptr);
+    shmctl(shmid, IPC_RMID, NULL);
     exit(EXIT_SUCCESS);
 }
 
@@ -50,6 +52,7 @@ void exit_with_error(const char *err) {
     freeaddrinfo(addr);
     close(sockfd);
     shmdt(shmptr);
+    shmctl(shmid, IPC_RMID, NULL);
     exit(EXIT_FAILURE);
 }
 
@@ -95,12 +98,11 @@ bool add_dwumasztowiec(char board[4][4], char in1[3], char in2[3]) {
     }
 }
 
+/* wymusza zamianę znaku na podanej planszy na flag */
 void force_replace(char board[4][4], const char input[3], char flag) {
-
     unsigned int row = input[0] - 'A';
     unsigned int col = input[1] - '0' - 1;
     board[row][col] = flag;
-
 }
 
 /* Zwraca 3 wartości:
@@ -143,6 +145,7 @@ void print_board(char board[4][4]) {
     }
 }
 
+/* czyści planszę poprzez zamianę każdego znaku na whitespace */
 void clear_board(char board[4][4]) {
     for (int i = 0; i < 4; ++i) {
         for (int j = 0; j < 4; ++j) {
@@ -151,6 +154,7 @@ void clear_board(char board[4][4]) {
     }
 }
 
+/* pobiera od użytkownika dane */
 void populate_board(char board[4][4]) {
 
     /* jednomasztowce */
@@ -189,6 +193,7 @@ void populate_board(char board[4][4]) {
     }
 }
 
+/* sprawdza czy podane dane są koordynatami w odpowiednim formacie np. A2 */
 bool is_coords(const char *msg) {
     if (isalpha(msg[0]) && (msg[0] == 'A' || msg[0] == 'B' || msg[0] == 'C' || msg[0] == 'D')) {
         if (isdigit(msg[1]) && (msg[1] == '1' || msg[1] == '2' || msg[1] == '3' || msg[1] == '4')) {
@@ -212,12 +217,12 @@ int main(int argc, char *argv[]) {
     struct addrinfo *p;
     ssize_t bytes;
 
+    /* tworzę pamięć dzieloną dla procesów parent/child */
     shmid = shmget(IPC_PRIVATE, sizeof(struct message), IPC_CREAT | 0666);
     if (shmid < 0) {
-        printf("*** shmget error (server) ***\n");
-        exit(1);
+        perror("shmget error\n");
+        exit(EXIT_FAILURE);
     }
-
     shmptr = (struct message *) shmat(shmid, NULL, 0);
 
     /* Zerowanie stuktury hints */
@@ -272,6 +277,7 @@ int main(int argc, char *argv[]) {
     char board[4][4];
     /* plansza z ozaczeniami trafień */
     char hitboard[4][4];
+    /* tymczasowa zmienna do przetrzymywania lokalizacji trafienia dwumasztowca */
     char hitdwu[3];
 
     /* wypełnienie obu planszy pustymi znakami */
@@ -299,7 +305,7 @@ int main(int argc, char *argv[]) {
     printf("[Propozycja gry wyslana]\n");
 
     bytes = -1;
-    player.reaction = -1;
+    player.reaction = -1; // domyślna reakcja
 
     /* pamięć dzielona */
     char defaultshot[3] = {' ', ' ', '\0'};
@@ -333,6 +339,7 @@ int main(int argc, char *argv[]) {
                 freeaddrinfo(addr);
                 close(sockfd);
                 shmdt(shmptr);
+                shmctl(shmid, IPC_RMID, NULL);
                 exit(EXIT_SUCCESS);
 
             } else if (is_coords(msg)) {
@@ -363,34 +370,41 @@ int main(int argc, char *argv[]) {
             unsigned int nn = sizeof(server_addr);
             bytes = recvfrom(sockfd, &opponent, sizeof(opponent),
                              0, (struct sockaddr *) &server_addr, &nn);
-
             if (bytes == -1) {
                 exit_with_error("Blad recvfrom");
             }
-
             bytes = -1;
 
+            /* wykonuje polecenie gdy reakcja jest inna niż domyślna =-1 */
             if (opponent.reaction != -1) {
+                /* kopiuje zawartość shmptr zmodyfikowaną przez child do lokalnego player.shot */
                 strncpy(player.shot, shmptr->shot, 3);
+
+                /* wiadomość przywitania */
                 if (opponent.reaction == connected) {
                     printf("[%s (%s): dolaczyl do gry, podaj pole do strzalu]\n",
                            opponent.nick, inet_ntoa(server_addr.sin_addr));
 
+                /* nadpisuje zmienną miss jeśli przeciwnik da znać że się nie trafiło
+                 * potrzebne do wiadomości typu "[Pudlo, " */
                 } else if (opponent.reaction == miss) {
                     missed = true;
 
+                /* reakcja na trafienie i zatopienie jednomasztowca */
                 } else if (opponent.reaction == hit_and_killed_jednomasztowiec) {
                     force_replace(hitboard, player.shot, 'Z');
                     ++shmptr->killcount;
                     printf("[%s (%s): zatopiles jednomasztowiec, podaj pole do strzalu]\n",
                            opponent.nick, inet_ntoa(server_addr.sin_addr));
 
+                /* reakcja na trafienie dwumasztowca */
                 } else if (opponent.reaction == hit_not_killed_dwumasztowiec) {
                     force_replace(hitboard, player.shot, 'x');
                     strcpy(hitdwu, player.shot); // chwilowa zmienna do trzymania
                     printf("[%s (%s): trafiles dwumasztowiec, podaj kolejne pole]\n",
                            opponent.nick, inet_ntoa(server_addr.sin_addr));
 
+                /* reakcja na trafienie i zatopienie dwumasztowca */
                 } else if (opponent.reaction == hit_and_killed_dwumasztowiec) {
                     force_replace(hitboard, player.shot, 'Z');
                     force_replace(hitboard, hitdwu, 'Z');
@@ -398,27 +412,45 @@ int main(int argc, char *argv[]) {
                     player.shot[1] = ' ';
                     ++shmptr->killcount;
 
+                /* reakcja na zwycięztwo przeciwnika */
                 } else if (opponent.reaction == win) {
                     printf("[%s (%s) wygral, przegrales]\n",
                            opponent.nick, inet_ntoa(server_addr.sin_addr));
 
+                /* reakcja na zakończenie gry przez przeciwnika */
                 } else if (opponent.reaction == end) {
-                    printf("[%s (%s) zakonczyl gre, czy chcesz przygotowac nowa plansze?]\n",
+                    printf("[%s (%s) zakonczyl gre, czy chcesz przygotowac nowa plansze? (t/n)]\n",
                            opponent.nick, inet_ntoa(server_addr.sin_addr));
-                    clear_board(board);
-                    clear_board(hitboard);
-                    populate_board(board);
-                    player.reaction = connected;
+                    fgets(msg, 2, stdin);
+                    if (msg[0] == 't') {
+                        clear_board(board);
+                        clear_board(hitboard);
+                        populate_board(board);
+                        player.reaction = connected;
+                    } else {
+                        freeaddrinfo(addr);
+                        close(sockfd);
+                        shmdt(shmptr);
+                        shmctl(shmid, IPC_RMID, NULL);
+                        exit(EXIT_SUCCESS);
+                    }
 
+                /* ta reakcja sygnalizuje, że przeciwnik wybrał cel i strzelił,
+                 * pod tym ifem są reakcje na wszystkie możliwości a następnie wysyłana jest
+                 * odpowiedź odnośnie trafienia */
                 } else if (opponent.reaction == aim && is_coords(opponent.shot)) {
                     player.reaction = hit(board, opponent.shot);
+                    /* formatowanie z missed */
                     if (missed == false) {
                         printf("[");
                     } else {
                         printf("[Pudlo, ");
                         missed = false;
                     }
-                    if (player.reaction == hit_and_killed_jednomasztowiec) {
+                    if (player.reaction == miss) {
+                        printf("%s (%s) strzela %s pudlo, podaj pole do strzalu]\n",
+                               opponent.nick, inet_ntoa(server_addr.sin_addr), opponent.shot);
+                    } else if (player.reaction == hit_and_killed_jednomasztowiec) {
                         force_replace(board, opponent.shot, ' ');
                         printf("%s (%s) strzela %s - jednomasztowiec trafiony]\n",
                                opponent.nick, inet_ntoa(server_addr.sin_addr), opponent.shot);
@@ -433,9 +465,10 @@ int main(int argc, char *argv[]) {
                     } else {
                         player.reaction = -1;
                     }
-
+                    /* reset strzału */
                     opponent.shot[0] = ' ';
                     opponent.shot[1] = ' ';
+                    /* wysyła reakcję z player.reaction */
                     sendto(sockfd, &player, sizeof(player), 0, (struct sockaddr *) &server_addr,
                            sizeof(server_addr));
                 }
