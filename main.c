@@ -198,7 +198,7 @@ int main(int argc, char *argv[]) {
     struct sockaddr_in client_addr, server_addr;
     struct message player, opponent;
     char msg[255];
-    volatile bool missed = false;
+    volatile bool missed;
     int killcount = 0;
     int bindresult;
     ssize_t bytes;
@@ -388,7 +388,6 @@ int main(int argc, char *argv[]) {
                 } else if (opponent.reaction == win) {
                     printf("[%s (%s) wygral, przegrales]\n",
                            opponent.nick, inet_ntoa(server_addr.sin_addr));
-                    continue;
 
                 } else if (opponent.reaction == end) {
                     printf("[%s (%s) zakonczyl gre, czy chcesz przygotowac nowa plansze?]\n",
