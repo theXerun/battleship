@@ -143,6 +143,7 @@ void clear_board(char board[4][4]) {
         }
     }
 }
+
 void populate_board(char board[4][4]) {
 
     /* jednomasztowce */
@@ -286,6 +287,10 @@ int main(int argc, char *argv[]) {
 
     bytes = -1;
     player.reaction = -1;
+    int fd[2];
+    if (pipe(fd) < 0) {
+        perror("pipe");
+    }
 
     /* child process do obsługi wysyłania */
     int pid;
@@ -329,19 +334,22 @@ int main(int argc, char *argv[]) {
             bytes = sendto(sockfd, &player, sizeof(player),
                            0, (struct sockaddr *) &server_addr,
                            sizeof(server_addr));
+            write(fd[1], player.shot, 3);
             if (bytes == -1) {
                 exit_with_error("Nie udalo sie wysłać wiadomości");
             }
 
             bytes = -1;
         }
-    //proces główny
+        //proces główny
     } else if (pid != -1) {
         while (true) {
             /* Odbieranie wiadomości */
             unsigned int nn = sizeof(server_addr);
             bytes = recvfrom(sockfd, &opponent, sizeof(opponent),
                              0, (struct sockaddr *) &server_addr, &nn);
+
+            read(fd[0], player.shot, 3);
 
             if (bytes == -1) {
                 exit_with_error("Blad recvfrom");
