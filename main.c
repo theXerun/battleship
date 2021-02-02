@@ -182,14 +182,14 @@ void populate_board(char board[4][4]) {
 bool is_coords(const char *msg) {
     if (msg[0] == 'A' || msg[0] == 'B' || msg[0] == 'C' || msg[0] == 'D') {
         if (msg[1] == '1' || msg[1] == '2' || msg[1] == '3' || msg[1] == '4') {
-            printf("TAK koordynaty");
+            printf("TAK koordynaty\n");
             return true;
         } else {
-            printf("NIE koordynaty");
+            printf("NIE koordynaty\n");
             return false;
         }
     } else {
-        printf("NIE koordynaty");
+        printf("NIE koordynaty\n");
         return false;
     }
 }
@@ -310,7 +310,7 @@ int main(int argc, char *argv[]) {
                 player.shot[0] = msg[0];
                 player.shot[1] = msg[1];
                 player.shot[2] = '\0';
-                printf("koordynaty %c%c", player.shot[0], player.shot[1]);
+                printf("koordynaty %c%c\n", player.shot[0], player.shot[1]);
             }
 
             if (strcmp(msg, "<koniec>") == 0) {
