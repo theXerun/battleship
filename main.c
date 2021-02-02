@@ -9,6 +9,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <sys/signal.h>
+#include <ctype.h>
 
 #define miss 0
 #define hit_and_killed_jednomasztowiec 1
@@ -181,8 +182,8 @@ void populate_board(char board[4][4]) {
 }
 
 bool is_coords(const char *msg) {
-    if (msg[0] == 'A' || msg[0] == 'B' || msg[0] == 'C' || msg[0] == 'D') {
-        if (msg[1] == '1' || msg[1] == '2' || msg[1] == '3' || msg[1] == '4') {
+    if (isalpha(msg[0]) && (msg[0] == 'A' || msg[0] == 'B' || msg[0] == 'C' || msg[0] == 'D')) {
+        if (isdigit(msg[1]) && (msg[1] == '1' || msg[1] == '2' || msg[1] == '3' || msg[1] == '4')) {
             return true;
         } else {
             return false;
@@ -319,6 +320,8 @@ int main(int argc, char *argv[]) {
                 player.shot[1] = msg[1];
                 player.shot[2] = '\0';
                 player.reaction = aim;
+            } else {
+                player.reaction = -1;
             }
 
 
@@ -354,6 +357,11 @@ int main(int argc, char *argv[]) {
                     printf("[%s (%s): dolaczyl do gry, podaj pole do strzalu]\n",
                            opponent.nick, inet_ntoa(server_addr.sin_addr));
 
+                } else if (opponent.reaction == miss) {
+                    player.shot[0] = ' ';
+                    player.shot[1] = ' ';
+                    missed = true;
+
                 } else if (opponent.reaction == hit_and_killed_jednomasztowiec) {
                     force_replace(hitboard, player.shot, 'Z');
                     ++killcount;
@@ -381,11 +389,6 @@ int main(int argc, char *argv[]) {
                     printf("[%s (%s) wygral, przegrales]\n",
                            opponent.nick, inet_ntoa(server_addr.sin_addr));
                     continue;
-
-                } else if (opponent.reaction == miss) {
-                    player.shot[0] = ' ';
-                    player.shot[1] = ' ';
-                    missed = true;
 
                 } else if (opponent.reaction == end) {
                     printf("[%s (%s) zakonczyl gre, czy chcesz przygotowac nowa plansze?]\n",
