@@ -88,7 +88,7 @@ bool add_dwumasztowiec(char board[4][4], char in1[3], char in2[3]) {
 
 void force_replace(char board[4][4], const char input[3], char flag) {
 
-    int row = input[0] - 'A' + 1;
+    int row = input[0] - 'A';
     int col = input[1] - '0' - 1;
     board[row][col] = flag;
 
@@ -141,15 +141,55 @@ void clear_board(char board[4][4]) {
         }
     }
 }
+void populate_board(char board[4][4]) {
+
+    /* jednomasztowce */
+    char jed1[3];
+    char jed2[3];
+    /* dwumasztowce */
+    char dwu1[3];
+    char dwu2[3];
+
+    while (true) {
+        printf("1. jednomasztowiec:");
+        scanf("%s", jed1);
+        if (add_jednomasztowiec(board, jed1, '1')) {
+            break;
+        } else {
+            printf("Podaj dane ponownie\n");
+        }
+    }
+    while (true) {
+        printf("2. jednomasztowiec:");
+        scanf("%s", jed2);
+        if (add_jednomasztowiec(board, jed2, '1')) {
+            break;
+        } else {
+            printf("Podaj dane ponownie\n");
+        }
+    }
+    while (true) {
+        printf("3. dwumasztowiec:");
+        scanf("%s %s", dwu1, dwu2);
+        if (add_dwumasztowiec(board, dwu1, dwu2)) {
+            break;
+        } else {
+            printf("Podaj dane ponownie\n");
+        }
+    }
+}
 
 bool is_coords(const char *msg) {
     if (msg[0] == 'A' || msg[0] == 'B' || msg[0] == 'C' || msg[0] == 'D') {
         if (msg[1] == '1' || msg[1] == '2' || msg[1] == '3' || msg[1] == '4') {
+            printf("TAK koordynaty");
             return true;
         } else {
+            printf("NIE koordynaty");
             return false;
         }
     } else {
+        printf("NIE koordynaty");
         return false;
     }
 }
@@ -219,12 +259,6 @@ int main(int argc, char *argv[]) {
     char board[4][4];
     /* plansza z ozaczeniami trafień */
     char hitboard[4][4];
-    /* jednomasztowce */
-    char jed1[3];
-    char jed2[3];
-    /* dwumasztowce */
-    char dwu1[3];
-    char dwu2[3];
     char hitdwu[3];
 
     /* wypełnienie obu planszy pustymi znakami */
@@ -232,33 +266,7 @@ int main(int argc, char *argv[]) {
     clear_board(hitboard);
 
     /* wejście do danych */
-    while (true) {
-        printf("1. jednomasztowiec:");
-        scanf("%s", jed1);
-        if (add_jednomasztowiec(board, jed1, '1')) {
-            break;
-        } else {
-            printf("Podaj dane ponownie\n");
-        }
-    }
-    while (true) {
-        printf("2. jednomasztowiec:");
-        scanf("%s", jed2);
-        if (add_jednomasztowiec(board, jed2, '1')) {
-            break;
-        } else {
-            printf("Podaj dane ponownie\n");
-        }
-    }
-    while (true) {
-        printf("3. dwumasztowiec:");
-        scanf("%s %s", dwu1, dwu2);
-        if (add_dwumasztowiec(board, dwu1, dwu2)) {
-            break;
-        } else {
-            printf("Podaj dane ponownie\n");
-        }
-    }
+    populate_board(board);
 
     /* Ustawianie nicku na bazie argv[2], jeśli nie ma to ustawia "NN" */
     char *name = argc == 2 ? "NN" : argv[2];
@@ -302,7 +310,7 @@ int main(int argc, char *argv[]) {
                 player.shot[0] = msg[0];
                 player.shot[1] = msg[1];
                 player.shot[2] = '\0';
-
+                printf("koordynaty %c%c", player.shot[0], player.shot[1]);
             }
 
             if (strcmp(msg, "<koniec>") == 0) {
@@ -325,7 +333,7 @@ int main(int argc, char *argv[]) {
 
             bytes = -1;
         }
-
+    //proces główny
     } else if (pid != -1) {
         while (true) {
             /* Odbieranie wiadomości */
@@ -350,18 +358,24 @@ int main(int argc, char *argv[]) {
                 } else if (opponent.reaction == hit_and_killed_jednomasztowiec) {
                     force_replace(hitboard, player.shot, 'Z');
                     ++killcount;
+                    player.shot[0] = ' ';
+                    player.shot[1] = ' ';
                     printf("[%s (%s): zatopiles jednomasztowiec, podaj pole do strzalu]\n",
                            opponent.nick, inet_ntoa(server_addr.sin_addr));
 
                 } else if (opponent.reaction == hit_not_killed_dwumasztowiec) {
                     force_replace(hitboard, player.shot, 'x');
                     strcpy(hitdwu, player.shot); // chwilowa zmienna do trzymania
+                    player.shot[0] = ' ';
+                    player.shot[1] = ' ';
                     printf("[%s (%s): trafiles dwumasztowiec, podaj kolejne pole]\n",
                            opponent.nick, inet_ntoa(server_addr.sin_addr));
 
                 } else if (opponent.reaction == hit_and_killed_dwumasztowiec) {
                     force_replace(hitboard, player.shot, 'Z');
                     force_replace(hitboard, hitdwu, 'Z');
+                    player.shot[0] = ' ';
+                    player.shot[1] = ' ';
                     ++killcount;
 
                 } else if (opponent.reaction == win) {
@@ -370,15 +384,19 @@ int main(int argc, char *argv[]) {
                     continue;
 
                 } else if (opponent.reaction == miss) {
+                    player.shot[0] = ' ';
+                    player.shot[1] = ' ';
                     missed = true;
 
                 } else if (opponent.reaction == end) {
                     printf("[%s (%s) zakonczyl gre, czy chcesz przygotowac nowa plansze?]\n",
                            opponent.nick, inet_ntoa(server_addr.sin_addr));
+                    clear_board(board);
+                    clear_board(hitboard);
+                    populate_board(board);
+                    player.reaction = connected;
                 }
                 opponent.reaction = -1;
-                player.shot[0] = ' ';
-                player.shot[1] = ' ';
 
             } else if (is_coords(opponent.shot)) {
                 player.reaction = hit(board, opponent.shot);
