@@ -304,16 +304,8 @@ int main(int argc, char *argv[]) {
 
             if (strcmp(msg, "wypisz") == 0) {
                 print_board(hitboard);
-            }
 
-            if (is_coords(msg)) {
-                player.shot[0] = msg[0];
-                player.shot[1] = msg[1];
-                player.shot[2] = '\0';
-                printf("koordynaty %c%c\n", player.shot[0], player.shot[1]);
-            }
-
-            if (strcmp(msg, "<koniec>") == 0) {
+            } else if (strcmp(msg, "<koniec>") == 0) {
                 player.reaction = end;
                 sendto(sockfd, &player, sizeof(player), 0,
                        (struct sockaddr *) &server_addr,
@@ -321,7 +313,14 @@ int main(int argc, char *argv[]) {
                 freeaddrinfo(addr);
                 close(sockfd);
                 exit(EXIT_SUCCESS);
+
+            } else if (is_coords(msg)) {
+                player.shot[0] = msg[0];
+                player.shot[1] = msg[1];
+                player.shot[2] = '\0';
+                printf("koordynaty %c%c\n", player.shot[0], player.shot[1]);
             }
+
 
             /* wysyłamy wiadomość */
             bytes = sendto(sockfd, &player, sizeof(player),
@@ -419,6 +418,8 @@ int main(int argc, char *argv[]) {
                     printf("%s (%s) strzela %s - dwumasztowiec zatopiony]\n",
                            opponent.nick, inet_ntoa(server_addr.sin_addr), opponent.shot);
                 }
+                opponent.shot[0] = ' ';
+                opponent.shot[1] = ' ';
                 sendto(sockfd, &player, sizeof(player), 0, (struct sockaddr *) &server_addr,
                        sizeof(server_addr));
             }
