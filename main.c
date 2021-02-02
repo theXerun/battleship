@@ -86,6 +86,7 @@ bool add_dwumasztowiec(char board[4][4], char in1[3], char in2[3]) {
     }
 }
 
+// TODO fix
 void force_replace(char board[4][4], const char input[3], char flag) {
 
     int row = input[0] - 'A';
@@ -182,14 +183,11 @@ void populate_board(char board[4][4]) {
 bool is_coords(const char *msg) {
     if (msg[0] == 'A' || msg[0] == 'B' || msg[0] == 'C' || msg[0] == 'D') {
         if (msg[1] == '1' || msg[1] == '2' || msg[1] == '3' || msg[1] == '4') {
-            printf("TAK koordynaty\n");
             return true;
         } else {
-            printf("NIE koordynaty\n");
             return false;
         }
     } else {
-        printf("NIE koordynaty\n");
         return false;
     }
 }
@@ -297,6 +295,8 @@ int main(int argc, char *argv[]) {
                 printf("[%s (%s) wygrales]\n", opponent.nick,
                        inet_ntoa(server_addr.sin_addr));
             } else {
+                player.shot[0] = ' ';
+                player.shot[1] = ' ';
                 /* pobieramy wiadomość od użytkownika */
                 fgets(msg, 255, stdin);
                 msg[strlen(msg) - 1] = '\0';
