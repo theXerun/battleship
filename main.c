@@ -11,6 +11,7 @@
 #include <sys/signal.h>
 #include <ctype.h>
 #include <sys/mman.h>
+#include <sys/shm.h>
 
 #define miss 0
 #define hit_and_killed_jednomasztowiec 1
@@ -26,15 +27,20 @@ struct message {
     char nick[32];
     char shot[3];
     int reaction;
+    int killcount;
 };
 
 struct addrinfo *addr;
 int sockfd;
+int shmid;
+struct message *shmptr;
+pid_t shmpid;
 
 /* sighandler */
 void handler(int sig) {
     freeaddrinfo(addr);
     close(sockfd);
+    shmdt(shmptr);
     exit(EXIT_SUCCESS);
 }
 
@@ -43,6 +49,7 @@ void exit_with_error(const char *err) {
     perror(err);
     freeaddrinfo(addr);
     close(sockfd);
+    shmdt(shmptr);
     exit(EXIT_FAILURE);
 }
 
@@ -195,25 +202,24 @@ bool is_coords(const char *msg) {
     }
 }
 
-void *create_shared_memory(size_t size) {
-
-    int protection = PROT_READ | PROT_WRITE;
-    int visibility = MAP_SHARED | MAP_ANONYMOUS;
-    return mmap(NULL, size, protection, visibility, -1, 0);
-}
-
 int main(int argc, char *argv[]) {
 
     struct sockaddr_in client_addr, server_addr;
     struct message player, opponent;
     char msg[255];
     volatile bool missed;
-    int killcount = 0;
     int bindresult;
-    ssize_t bytes;
-
     struct addrinfo hints;
     struct addrinfo *p;
+    ssize_t bytes;
+
+    shmid = shmget(IPC_PRIVATE, sizeof(struct message), IPC_CREAT | 0666);
+    if (shmid < 0) {
+        printf("*** shmget error (server) ***\n");
+        exit(1);
+    }
+
+    shmptr = (struct message *) shmat(shmid, NULL, 0);
 
     /* Zerowanie stuktury hints */
     memset(&hints, 0, sizeof(hints));
@@ -298,13 +304,14 @@ int main(int argc, char *argv[]) {
 
     /* pamięć dzielona */
     char defaultshot[3] = {' ', ' ', '\0'};
-    void *shmem = create_shared_memory(3);
+    strncpy(shmptr->shot, defaultshot, 3);
+    shmptr->killcount = 0;
 
     /* child process do obsługi wysyłania */
     int pid;
     if ((pid = fork()) == 0) {
         while (true) {
-            if (killcount > 2) {
+            if (shmptr->killcount > 2) {
                 player.reaction = win;
                 printf("[%s (%s) wygrales]\n", opponent.nick,
                        inet_ntoa(server_addr.sin_addr));
@@ -326,6 +333,7 @@ int main(int argc, char *argv[]) {
                        sizeof(server_addr));
                 freeaddrinfo(addr);
                 close(sockfd);
+                shmdt(shmptr);
                 exit(EXIT_SUCCESS);
 
             } else if (is_coords(msg)) {
@@ -333,7 +341,7 @@ int main(int argc, char *argv[]) {
                 player.shot[1] = msg[1];
                 player.shot[2] = '\0';
                 player.reaction = aim;
-                memcpy(shmem, player.shot, sizeof(player.shot));
+                strncpy(shmptr->shot, player.shot, 3);
             } else {
                 player.reaction = -1;
             }
@@ -364,7 +372,7 @@ int main(int argc, char *argv[]) {
             bytes = -1;
 
             if (opponent.reaction != -1) {
-                strncpy(player.shot, shmem, 3);
+                strncpy(player.shot, shmptr->shot, 3);
                 missed = false;
                 if (opponent.reaction == connected) {
                     printf("[%s (%s): dolaczyl do gry, podaj pole do strzalu]\n",
@@ -375,7 +383,7 @@ int main(int argc, char *argv[]) {
 
                 } else if (opponent.reaction == hit_and_killed_jednomasztowiec) {
                     force_replace(hitboard, player.shot, 'Z');
-                    ++killcount;
+                    ++shmptr->killcount;
                     printf("[%s (%s): zatopiles jednomasztowiec, podaj pole do strzalu]\n",
                            opponent.nick, inet_ntoa(server_addr.sin_addr));
 
@@ -390,7 +398,7 @@ int main(int argc, char *argv[]) {
                     force_replace(hitboard, hitdwu, 'Z');
                     player.shot[0] = ' ';
                     player.shot[1] = ' ';
-                    ++killcount;
+                    ++shmptr->killcount;
 
                 } else if (opponent.reaction == win) {
                     printf("[%s (%s) wygral, przegrales]\n",
