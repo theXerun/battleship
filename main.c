@@ -10,6 +10,7 @@
 #include <unistd.h>
 #include <sys/signal.h>
 #include <ctype.h>
+#include <sys/mman.h>
 
 #define miss 0
 #define hit_and_killed_jednomasztowiec 1
@@ -194,6 +195,13 @@ bool is_coords(const char *msg) {
     }
 }
 
+void *create_shared_memory(size_t size) {
+
+    int protection = PROT_READ | PROT_WRITE;
+    int visibility = MAP_SHARED | MAP_ANONYMOUS;
+    return mmap(NULL, size, protection, visibility, -1, 0);
+}
+
 int main(int argc, char *argv[]) {
 
     struct sockaddr_in client_addr, server_addr;
@@ -287,10 +295,10 @@ int main(int argc, char *argv[]) {
 
     bytes = -1;
     player.reaction = -1;
-    int fd[2];
-    if (pipe(fd) < 0) {
-        perror("pipe");
-    }
+
+    /* pamięć dzielona */
+    char defaultshot[3] = {' ', ' ', '\0'};
+    void *shmem = create_shared_memory(3);
 
     /* child process do obsługi wysyłania */
     int pid;
@@ -325,6 +333,7 @@ int main(int argc, char *argv[]) {
                 player.shot[1] = msg[1];
                 player.shot[2] = '\0';
                 player.reaction = aim;
+                memcpy(shmem, player.shot, sizeof(player.shot));
             } else {
                 player.reaction = -1;
             }
@@ -338,7 +347,7 @@ int main(int argc, char *argv[]) {
                 exit_with_error("Nie udalo sie wysłać wiadomości");
             }
             bytes = -1;
-            write(fd[1], player.shot, 3);
+
         }
         //proces główny
     } else if (pid != -1) {
@@ -355,31 +364,24 @@ int main(int argc, char *argv[]) {
             bytes = -1;
 
             if (opponent.reaction != -1) {
-
+                strncpy(player.shot, shmem, 3);
                 missed = false;
-                read(fd[0], player.shot, 3);
                 if (opponent.reaction == connected) {
                     printf("[%s (%s): dolaczyl do gry, podaj pole do strzalu]\n",
                            opponent.nick, inet_ntoa(server_addr.sin_addr));
 
                 } else if (opponent.reaction == miss) {
-                    player.shot[0] = ' ';
-                    player.shot[1] = ' ';
                     missed = true;
 
                 } else if (opponent.reaction == hit_and_killed_jednomasztowiec) {
                     force_replace(hitboard, player.shot, 'Z');
                     ++killcount;
-                    player.shot[0] = ' ';
-                    player.shot[1] = ' ';
                     printf("[%s (%s): zatopiles jednomasztowiec, podaj pole do strzalu]\n",
                            opponent.nick, inet_ntoa(server_addr.sin_addr));
 
                 } else if (opponent.reaction == hit_not_killed_dwumasztowiec) {
                     force_replace(hitboard, player.shot, 'x');
                     strcpy(hitdwu, player.shot); // chwilowa zmienna do trzymania
-                    player.shot[0] = ' ';
-                    player.shot[1] = ' ';
                     printf("[%s (%s): trafiles dwumasztowiec, podaj kolejne pole]\n",
                            opponent.nick, inet_ntoa(server_addr.sin_addr));
 
