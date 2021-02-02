@@ -88,7 +88,7 @@ bool add_dwumasztowiec(char board[4][4], char in1[3], char in2[3]) {
 
 void force_replace(char board[4][4], const char input[3], char flag) {
 
-    int row = input[0] - 'A';
+    int row = input[0] - 'A' + 1;
     int col = input[1] - '0' - 1;
     board[row][col] = flag;
 
@@ -323,10 +323,6 @@ int main(int argc, char *argv[]) {
                 exit_with_error("Nie udalo sie wysłać wiadomości");
             }
 
-            player.shot[0] = ' ';
-            player.shot[1] = ' ';
-            player.shot[2] = ' ';
-
             bytes = -1;
         }
 
@@ -381,6 +377,8 @@ int main(int argc, char *argv[]) {
                            opponent.nick, inet_ntoa(server_addr.sin_addr));
                 }
                 opponent.reaction = -1;
+                player.shot[0] = ' ';
+                player.shot[1] = ' ';
 
             } else if (is_coords(opponent.shot)) {
                 player.reaction = hit(board, opponent.shot);
