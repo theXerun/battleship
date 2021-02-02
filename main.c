@@ -17,6 +17,7 @@
 #define win 4
 #define end 5
 #define connected 10
+#define aim 11
 
 /* Struktura pomocnicza do wysyłania */
 struct message {
@@ -298,7 +299,6 @@ int main(int argc, char *argv[]) {
             }
 
             if (is_coords(msg)) {
-                printf("Strzal!\n");
                 player.shot[0] = msg[0];
                 player.shot[1] = msg[1];
                 player.shot[2] = '\0';
@@ -323,14 +323,19 @@ int main(int argc, char *argv[]) {
                 exit_with_error("Nie udalo sie wysłać wiadomości");
             }
 
+            player.shot[0] = ' ';
+            player.shot[1] = ' ';
+            player.shot[2] = ' ';
+
             bytes = -1;
         }
 
     } else if (pid != -1) {
         while (true) {
             /* Odbieranie wiadomości */
+            unsigned int nn = sizeof(server_addr);
             bytes = recvfrom(sockfd, &opponent, sizeof(opponent),
-                             0, (struct sockaddr *) &server_addr, (socklen_t *) sizeof(server_addr));
+                             0, (struct sockaddr *) &server_addr, &nn);
 
             if (bytes == -1) {
                 exit_with_error("Blad recvfrom");
@@ -376,9 +381,6 @@ int main(int argc, char *argv[]) {
                            opponent.nick, inet_ntoa(server_addr.sin_addr));
                 }
                 opponent.reaction = -1;
-                player.shot[0] = ' ';
-                player.shot[1] = ' ';
-                player.shot[2] = ' ';
 
             } else if (is_coords(opponent.shot)) {
                 player.reaction = hit(board, opponent.shot);
