@@ -89,8 +89,8 @@ bool add_dwumasztowiec(char board[4][4], char in1[3], char in2[3]) {
 // TODO fix
 void force_replace(char board[4][4], const char input[3], char flag) {
 
-    int row = input[0] - 'A';
-    int col = input[1] - '0' - 1;
+    unsigned int row = input[0] - 'A';
+    unsigned int col = input[1] - '0' - 1;
     board[row][col] = flag;
 
 }
@@ -318,7 +318,7 @@ int main(int argc, char *argv[]) {
                 player.shot[0] = msg[0];
                 player.shot[1] = msg[1];
                 player.shot[2] = '\0';
-                printf("koordynaty %c%c\n", player.shot[0], player.shot[1]);
+                player.reaction = aim;
             }
 
 
@@ -394,34 +394,37 @@ int main(int argc, char *argv[]) {
                     clear_board(hitboard);
                     populate_board(board);
                     player.reaction = connected;
-                }
-                opponent.reaction = -1;
 
-            }
-            if (is_coords(opponent.shot)) {
-                player.reaction = hit(board, opponent.shot);
-                if (missed == false) {
-                    printf("[");
-                } else {
-                    printf("[Pudlo, ");
+                } else if (opponent.reaction == aim && is_coords(opponent.shot)) {
+                    player.reaction = hit(board, opponent.shot);
+                    if (missed == false) {
+                        printf("[");
+                    } else {
+                        printf("[Pudlo, ");
+                    }
+                    if (player.reaction == hit_and_killed_jednomasztowiec) {
+                        force_replace(board, opponent.shot, ' ');
+                        printf("%s (%s) strzela %s - jednomasztowiec trafiony]\n",
+                               opponent.nick, inet_ntoa(server_addr.sin_addr), opponent.shot);
+                        print_board(board);
+                    } else if (player.reaction == hit_not_killed_dwumasztowiec) {
+                        force_replace(board, opponent.shot, ' ');
+                        printf("%s (%s) strzela %s - dwumasztowiec trafiony]\n",
+                               opponent.nick, inet_ntoa(server_addr.sin_addr), opponent.shot);
+                    } else if (player.reaction == hit_and_killed_dwumasztowiec) {
+                        force_replace(board, opponent.shot, ' ');
+                        printf("%s (%s) strzela %s - dwumasztowiec zatopiony]\n",
+                               opponent.nick, inet_ntoa(server_addr.sin_addr), opponent.shot);
+                    } else {
+                        player.reaction = -1;
+                    }
+
+                    opponent.shot[0] = ' ';
+                    opponent.shot[1] = ' ';
+                    sendto(sockfd, &player, sizeof(player), 0, (struct sockaddr *) &server_addr,
+                           sizeof(server_addr));
                 }
-                if (player.reaction == hit_and_killed_jednomasztowiec) {
-                    force_replace(board, opponent.shot, ' ');
-                    printf("%s (%s) strzela %s - jednomasztowiec trafiony]\n",
-                           opponent.nick, inet_ntoa(server_addr.sin_addr), opponent.shot);
-                } else if (player.reaction == hit_not_killed_dwumasztowiec) {
-                    force_replace(board, opponent.shot, ' ');
-                    printf("%s (%s) strzela %s - dwumasztowiec trafiony]\n",
-                           opponent.nick, inet_ntoa(server_addr.sin_addr), opponent.shot);
-                } else if (player.reaction == hit_and_killed_dwumasztowiec) {
-                    force_replace(board, opponent.shot, ' ');
-                    printf("%s (%s) strzela %s - dwumasztowiec zatopiony]\n",
-                           opponent.nick, inet_ntoa(server_addr.sin_addr), opponent.shot);
-                }
-                opponent.shot[0] = ' ';
-                opponent.shot[1] = ' ';
-                sendto(sockfd, &player, sizeof(player), 0, (struct sockaddr *) &server_addr,
-                       sizeof(server_addr));
+
             }
             fflush(stdout);
         }
