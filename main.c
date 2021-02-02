@@ -406,6 +406,8 @@ int main(int argc, char *argv[]) {
 
                 /* reakcja na trafienie i zatopienie dwumasztowca */
                 } else if (opponent.reaction == hit_and_killed_dwumasztowiec) {
+                    printf("[%s (%s): zatopiles dwumasztowiec, podaj kolejne pole]\n",
+                           opponent.nick, inet_ntoa(server_addr.sin_addr));
                     force_replace(hitboard, player.shot, 'Z');
                     force_replace(hitboard, hitdwu, 'Z');
                     player.shot[0] = ' ';
