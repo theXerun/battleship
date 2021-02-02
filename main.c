@@ -334,12 +334,11 @@ int main(int argc, char *argv[]) {
             bytes = sendto(sockfd, &player, sizeof(player),
                            0, (struct sockaddr *) &server_addr,
                            sizeof(server_addr));
-            write(fd[1], player.shot, 3);
             if (bytes == -1) {
                 exit_with_error("Nie udalo sie wysłać wiadomości");
             }
-
             bytes = -1;
+            write(fd[1], player.shot, 3);
         }
         //proces główny
     } else if (pid != -1) {
@@ -348,8 +347,6 @@ int main(int argc, char *argv[]) {
             unsigned int nn = sizeof(server_addr);
             bytes = recvfrom(sockfd, &opponent, sizeof(opponent),
                              0, (struct sockaddr *) &server_addr, &nn);
-
-            read(fd[0], player.shot, 3);
 
             if (bytes == -1) {
                 exit_with_error("Blad recvfrom");
@@ -360,7 +357,7 @@ int main(int argc, char *argv[]) {
             if (opponent.reaction != -1) {
 
                 missed = false;
-
+                read(fd[0], player.shot, 3);
                 if (opponent.reaction == connected) {
                     printf("[%s (%s): dolaczyl do gry, podaj pole do strzalu]\n",
                            opponent.nick, inet_ntoa(server_addr.sin_addr));
