@@ -95,7 +95,6 @@ bool add_dwumasztowiec(char board[4][4], char in1[3], char in2[3]) {
     }
 }
 
-// TODO fix
 void force_replace(char board[4][4], const char input[3], char flag) {
 
     unsigned int row = input[0] - 'A';
@@ -347,7 +346,7 @@ int main(int argc, char *argv[]) {
             }
 
 
-            /* wysyłamy wiadomość */
+            /* wysyłanie wiadomości */
             bytes = sendto(sockfd, &player, sizeof(player),
                            0, (struct sockaddr *) &server_addr,
                            sizeof(server_addr));
@@ -373,7 +372,6 @@ int main(int argc, char *argv[]) {
 
             if (opponent.reaction != -1) {
                 strncpy(player.shot, shmptr->shot, 3);
-                missed = false;
                 if (opponent.reaction == connected) {
                     printf("[%s (%s): dolaczyl do gry, podaj pole do strzalu]\n",
                            opponent.nick, inet_ntoa(server_addr.sin_addr));
@@ -418,12 +416,12 @@ int main(int argc, char *argv[]) {
                         printf("[");
                     } else {
                         printf("[Pudlo, ");
+                        missed = false;
                     }
                     if (player.reaction == hit_and_killed_jednomasztowiec) {
                         force_replace(board, opponent.shot, ' ');
                         printf("%s (%s) strzela %s - jednomasztowiec trafiony]\n",
                                opponent.nick, inet_ntoa(server_addr.sin_addr), opponent.shot);
-                        print_board(board);
                     } else if (player.reaction == hit_not_killed_dwumasztowiec) {
                         force_replace(board, opponent.shot, ' ');
                         printf("%s (%s) strzela %s - dwumasztowiec trafiony]\n",
