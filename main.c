@@ -398,7 +398,8 @@ int main(int argc, char *argv[]) {
                 }
                 opponent.reaction = -1;
 
-            } else if (is_coords(opponent.shot)) {
+            }
+            if (is_coords(opponent.shot)) {
                 player.reaction = hit(board, opponent.shot);
                 if (missed == false) {
                     printf("[");
