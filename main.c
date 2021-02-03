@@ -271,8 +271,7 @@ int main(int argc, char *argv[]) {
     printf("Rozpoczynam czat z %s. Napisz <koniec> by zakonczyc czat."
            " Ustal polozenie swoich okretow:\n", inet_ntoa(server_addr.sin_addr));
 
-    /* zmienne i wywołania potrzebne do gry w statki
-     * nie działają jednak w tej wersji programu */
+
     /* plansza zawierająca statki w pozycjach wybranych przez użytkownika*/
     char board[4][4];
     /* plansza z ozaczeniami trafień */
@@ -421,9 +420,10 @@ int main(int argc, char *argv[]) {
 
                 /* reakcja na zakończenie gry przez przeciwnika */
                 } else if (opponent.reaction == end) {
+                    getc(stdin);
                     printf("[%s (%s) zakonczyl gre, czy chcesz przygotowac nowa plansze? (t/n)]\n",
                            opponent.nick, inet_ntoa(server_addr.sin_addr));
-                    fgets(msg, 2, stdin);
+                    scanf("%s", msg);
                     if (msg[0] == 't') {
                         clear_board(board);
                         clear_board(hitboard);
