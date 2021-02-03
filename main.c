@@ -423,7 +423,7 @@ int main(int argc, char *argv[]) {
                     getc(stdin);
                     printf("[%s (%s) zakonczyl gre, czy chcesz przygotowac nowa plansze? (t/n)]\n",
                            opponent.nick, inet_ntoa(server_addr.sin_addr));
-                    scanf("%s", msg);
+                    scanf("%c", &msg[0]);
                     if (msg[0] == 't') {
                         clear_board(board);
                         clear_board(hitboard);
@@ -434,6 +434,7 @@ int main(int argc, char *argv[]) {
                         close(sockfd);
                         shmdt(shmptr);
                         shmctl(shmid, IPC_RMID, NULL);
+                        kill(pid, SIGINT);
                         exit(EXIT_SUCCESS);
                     }
 
@@ -449,17 +450,24 @@ int main(int argc, char *argv[]) {
                         printf("[Pudlo, ");
                         missed = false;
                     }
+                    /*reakcja na nietrafienie */
                     if (player.reaction == miss) {
                         printf("%s (%s) strzela %s pudlo, podaj pole do strzalu]\n",
                                opponent.nick, inet_ntoa(server_addr.sin_addr), opponent.shot);
+
+                    /*reakcja na trafienie i zatopienie jednomasztowca */
                     } else if (player.reaction == hit_and_killed_jednomasztowiec) {
                         force_replace(board, opponent.shot, ' ');
                         printf("%s (%s) strzela %s - jednomasztowiec trafiony]\n",
                                opponent.nick, inet_ntoa(server_addr.sin_addr), opponent.shot);
+
+                    /*reakcja na trafienie (ale nie zatopienie) dwumasztowca */
                     } else if (player.reaction == hit_not_killed_dwumasztowiec) {
                         force_replace(board, opponent.shot, ' ');
                         printf("%s (%s) strzela %s - dwumasztowiec trafiony]\n",
                                opponent.nick, inet_ntoa(server_addr.sin_addr), opponent.shot);
+
+                    /*reakcja na trafienie i zatopienie dwumasztowca */
                     } else if (player.reaction == hit_and_killed_dwumasztowiec) {
                         force_replace(board, opponent.shot, ' ');
                         printf("%s (%s) strzela %s - dwumasztowiec zatopiony]\n",
