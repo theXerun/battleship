@@ -160,7 +160,7 @@ void populate_board(char board[4][4]) {
     /* jednomasztowce */
     char jed1[3];
     char jed2[3];
-    /* dwumasztowce */
+    /* dwumasztowiec */
     char dwu1[3];
     char dwu2[3];
 
@@ -210,7 +210,7 @@ int main(int argc, char *argv[]) {
 
     struct sockaddr_in client_addr, server_addr;
     struct message player, opponent;
-    char msg[255];
+    char msg[256];
     volatile bool missed;
     int bindresult;
     struct addrinfo hints;
@@ -234,7 +234,7 @@ int main(int argc, char *argv[]) {
 
     /* ustawiam port */
     int n = 18000;
-    char port[7];
+    char port[6];
     sprintf(port, "%d", n);
 
     /* ustawienie hosta dla argv[1] */
@@ -319,6 +319,7 @@ int main(int argc, char *argv[]) {
                 player.reaction = win;
                 printf("[%s (%s) wygrales]\n", opponent.nick,
                        inet_ntoa(server_addr.sin_addr));
+                msg[0] = '\0';
             } else {
                 player.shot[0] = ' ';
                 player.shot[1] = ' ';
