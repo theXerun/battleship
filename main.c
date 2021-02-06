@@ -319,18 +319,11 @@ int main(int argc, char *argv[]) {
     int pid;
     if ((pid = fork()) == 0) {
         while (true) {
-            if (shmptr->killcount > 2) {
-                player.reaction = win;
-                printf("[%s (%s) wygrales]\n", opponent.nick,
-                       inet_ntoa(server_addr.sin_addr));
-                msg[0] = '\0';
-            } else {
-                player.shot[0] = ' ';
-                player.shot[1] = ' ';
-                /* pobieramy wiadomość od użytkownika */
-                fgets(msg, 256, stdin);
-                msg[strlen(msg) - 1] = '\0';
-            }
+            player.shot[0] = ' ';
+            player.shot[1] = ' ';
+            /* pobieramy wiadomość od użytkownika */
+            fgets(msg, 256, stdin);
+            msg[strlen(msg) - 1] = '\0';
 
             if (strcmp(msg, "wypisz") == 0) {
                 print_board(shmptr->hitboard);
@@ -379,6 +372,20 @@ int main(int argc, char *argv[]) {
             }
             bytes = -1;
 
+            if (shmptr->killcount > 2) {
+                printf("[%s (%s) wygrales]\n", player.nick,
+                       inet_ntoa(client_addr.sin_addr));
+                player.reaction = win;
+                sendto(sockfd, &player, sizeof(player), 0, (struct sockaddr *) &server_addr,
+                       sizeof(server_addr));
+                freeaddrinfo(addr);
+                close(sockfd);
+                shmdt(shmptr);
+                shmctl(shmid, IPC_RMID, NULL);
+                kill(pid, SIGINT);
+                exit(EXIT_SUCCESS);
+            }
+
             /* wykonuje polecenie gdy reakcja jest inna niż domyślna =-1 */
             if (opponent.reaction != -1) {
                 /* kopiuje zawartość shmptr zmodyfikowaną przez child do lokalnego player.shot */
@@ -422,6 +429,12 @@ int main(int argc, char *argv[]) {
                 } else if (opponent.reaction == win) {
                     printf("[%s (%s) wygral, przegrales]\n",
                            opponent.nick, inet_ntoa(server_addr.sin_addr));
+                    freeaddrinfo(addr);
+                    close(sockfd);
+                    shmdt(shmptr);
+                    shmctl(shmid, IPC_RMID, NULL);
+                    kill(pid, SIGINT);
+                    exit(EXIT_SUCCESS);
 
                     /* reakcja na zakończenie gry przez przeciwnika */
                 } else if (opponent.reaction == end) {
