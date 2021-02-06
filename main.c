@@ -30,12 +30,14 @@ struct message {
     int reaction; // reakcja jedna z makr powyżej albo -1
 };
 
+/* struktura do pamięci dzielonej */
 struct shared {
     char shot[3];
     int killcount;
     char hitboard[4][4];
 };
 
+/* struktura adresowa */
 struct addrinfo *addr;
 int sockfd;
 /* pamięć dzielona */
