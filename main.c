@@ -325,9 +325,12 @@ int main(int argc, char *argv[]) {
             fgets(msg, 256, stdin);
             msg[strlen(msg) - 1] = '\0';
 
+            /* sprawdzenie czy wiadomość to "wypisz"
+             * jeśli tak to pokazywana jest tablica trafień */
             if (strcmp(msg, "wypisz") == 0) {
                 print_board(shmptr->hitboard);
 
+                /* kończenie gry */
             } else if (strcmp(msg, "<koniec>") == 0) {
                 player.reaction = end;
                 sendto(sockfd, &player, sizeof(player), 0,
@@ -363,18 +366,10 @@ int main(int argc, char *argv[]) {
         //proces główny
     } else if (pid != -1) {
         while (true) {
-            /* Odbieranie wiadomości */
-            unsigned int nn = sizeof(server_addr);
-            bytes = recvfrom(sockfd, &opponent, sizeof(opponent),
-                             0, (struct sockaddr *) &server_addr, &nn);
-            if (bytes == -1) {
-                exit_with_error("Blad recvfrom");
-            }
-            bytes = -1;
 
+            /* sprawdzenie czy się wygrało */
             if (shmptr->killcount > 2) {
-                printf("[%s (%s) wygrales]\n", player.nick,
-                       inet_ntoa(client_addr.sin_addr));
+                printf("[%s wygrales]\n", player.nick);
                 player.reaction = win;
                 sendto(sockfd, &player, sizeof(player), 0, (struct sockaddr *) &server_addr,
                        sizeof(server_addr));
@@ -385,6 +380,16 @@ int main(int argc, char *argv[]) {
                 kill(pid, SIGINT);
                 exit(EXIT_SUCCESS);
             }
+
+            /* Odbieranie wiadomości */
+            unsigned int nn = sizeof(server_addr);
+            bytes = recvfrom(sockfd, &opponent, sizeof(opponent),
+                             0, (struct sockaddr *) &server_addr, &nn);
+            if (bytes == -1) {
+                exit_with_error("Blad recvfrom");
+            }
+            bytes = -1;
+
 
             /* wykonuje polecenie gdy reakcja jest inna niż domyślna =-1 */
             if (opponent.reaction != -1) {
