@@ -344,6 +344,20 @@ int main(int argc, char *argv[]) {
                 shmctl(shmid, IPC_RMID, NULL);
                 exit(EXIT_SUCCESS);
 
+            } else if (strcmp(msg, "t") == 0) {
+                clear_board(board);
+                clear_board(shmptr->hitboard);
+                getchar();
+                populate_board(board);
+                player.reaction = connected;
+
+            } else if (strcmp(msg, "n") == 0) {
+                freeaddrinfo(addr);
+                close(sockfd);
+                shmdt(shmptr);
+                shmctl(shmid, IPC_RMID, NULL);
+                exit(EXIT_SUCCESS);
+
             } else if (is_coords(msg)) {
                 player.shot[0] = msg[0];
                 player.shot[1] = msg[1];
@@ -447,29 +461,6 @@ int main(int argc, char *argv[]) {
                 } else if (opponent.reaction == end) {
                     printf("[%s (%s) zakonczyl gre, czy chcesz przygotowac nowa plansze? (t/n)]\n",
                            opponent.nick, inet_ntoa(server_addr.sin_addr));
-                    /* po wielokrotnych próbach i błędach nie jestem w stanie sprawić by odpowiedź można
-                     * było wprowadzić tylko raz. Dodanie getchar() tylko pogarsza sytuację. */
-                    char line[256];
-                    char c;
-                    if (fgets(line, sizeof line, stdin) == NULL) {
-                        printf("Błąd wprowadzania danych fgets\n");
-                        exit(EXIT_FAILURE);
-                    };
-                    c = line[0];
-                    if (c == 't' || c == 'T') {
-                        clear_board(board);
-                        clear_board(shmptr->hitboard);
-                        getchar();
-                        populate_board(board);
-                        player.reaction = connected;
-                    } else {
-                        freeaddrinfo(addr);
-                        close(sockfd);
-                        shmdt(shmptr);
-                        shmctl(shmid, IPC_RMID, NULL);
-                        kill(pid, SIGINT);
-                        exit(EXIT_SUCCESS);
-                    }
 
                     /* ta reakcja sygnalizuje, że przeciwnik wybrał cel i strzelił,
                      * pod tym ifem są reakcje na wszystkie możliwości a następnie wysyłana jest
